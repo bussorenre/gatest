@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charaset="utf-8">
+    <title> genetic algorithm </title>
+    <script type="text/javascript" src="enchant.js"></script>
+    <script type="text/javascript">
+      console.log("Simuration is started");
+    </script>
+
+    <style type="text/css">
+      body {margin:0;}
+    </style>
+  </head>
+  <body>
+
+  </body>
+</html>
+
+
+<script type="text/javascript">
+
+const TIMELIMIT = 5 * 20;   // 1秒5回 * 20秒
+const FISH_NUM  = 100;
+const FISH_SPEED= 2;
+const MAP_WIDTH  = 1200;
+const MAP_HEIGHT  = 200;
+const FOOD_NUM  = 50;
+var generation = 0;
+
+
+// 最初の遺伝子をランダムで決定したい。
+var genetics = new Array(FISH_NUM);
+for(i=0; i<FISH_NUM; i++) {
+    genetics[i] = new Array(TIMELIMIT);
+    for(j=0; j<TIMELIMIT; j++){
+        genetics[i][j] = Math.random()*4-2;
+    }
+}
+
+// それぞれの結果を保存
+var result = new Array(FISH_NUM);
+for(i=0; i<FISH_NUM; i++) {
+    result[i] = 0;
+}
+
+enchant();
+window.onload = function(){
+    var game = new Game(MAP_WIDTH,MAP_HEIGHT*2);
+    var frame = 0;
+    game.fps = 600;
+    game.preload('fish.png');
+    game.preload('food.gif');
+
+    game.onload = function() {
+        var fish = new Array(FISH_NUM);
+        var food = new Array(FOOD_NUM);
+        var label = new Label("Time is "+frame);
+        game.rootScene.addChild(label);
+
+        // 餌の初期化
+        for(var i=0; i<FOOD_NUM; i++){
+            food[i] = new Sprite(16,12);
+            food[i].image = game.assets['food.gif'];
+            food[i].x = MAP_WIDTH/FOOD_NUM*i;
+//            food[i].y = Math.random()*MAP_HEIGHT;
+            food[i].y = Math.sin(Math.PI/FOOD_NUM*2 * i)*MAP_HEIGHT/2+MAP_HEIGHT/2;
+            game.rootScene.addChild(food[i]);
+        }
+
+        // 魚の初期設定
+        for(var i=0; i<FISH_NUM; i++) {
+            fish[i] = new Sprite(24,21);
+            fish[i].image = game.assets['fish.png'];
+            fish[i].x = 0;         // 左側に絶対配置
+            fish[i].y = MAP_HEIGHT/2;
+            fish[i].rotation = 0;
+            fish[i].rotate(30);
+            game.rootScene.addChild(fish[i]);
+        }
+        fish[0].scale(3,3);
+        fish[9].scale(2,2);
+        game.rootScene.addEventListener('enterframe', function() {
+            for(var i=0; i<FISH_NUM; i++) {
+                fish[i].rotate(genetics[i][frame]);
+                fish[i].x += Math.cos(fish[i].rotation / 180 * Math.PI) * FISH_SPEED;
+                fish[i].y += Math.sin(fish[i].rotation / 180 * Math.PI) * FISH_SPEED;
+
+                // すべての餌との当たり判定を調べる。
+                for(var j=0; j<FOOD_NUM; j++){
+                    if(fish[i].x>food[j].x+4 && fish[i].x<food[j].x+12 && 
+                       fish[i].y>food[j].y+3 && fish[i].y<food[j].y+9 ){
+                        result[i]+= Math.pow(TIMELIMIT/5,3)-~~Math.pow(frame/5,3);
+                    }
+                }
+            }
+            // 情報を提示
+            label.text = "Generation is "+generation + " Time is "+frame;
+
+            // 1世代終了処理
+            if(game.frame%6==0){
+                frame++;
+            }
+            if(frame == TIMELIMIT){
+                frame = 0;
+                generation++;
+                var sum = 0;
+                // 遺伝と交配を行い、再セットする
+                // まずは結果順にソート
+                for(var i=0; i<FISH_NUM; i++) {
+                    for(var j=i+1; j<FISH_NUM; j++){
+                        if(result[i]<result[j]){
+                            var tmpr,tmpg;
+                            tmpr = result[i];       tmpg = genetics[i];
+                            result[i] = result[j];  genetics[i] = genetics[j];
+                            result[j] = tmpr;       genetics[j] = tmpg;
+                        }
+                    }
+                    sum += result[i]/FISH_NUM;
+                }
+                // 最上位の個体をログに保存
+                console.log("generation:"+generation+" result:"+result[0]+"-"+result[1]+"-"+result[2]+"-"+result[3]+"-"+result[4]+"---"+result[9]+"---"+result[FISH_NUM-1]+ " ave:"+sum);
+                // 上位10位のみを残し、残りは乱数により遺伝子勾配
+                for(var i=10; i<FISH_NUM; i++) {
+                    var r = Math.random()*100;
+                    for(j=0; j<TIMELIMIT; j++){
+                        var p=i%10;
+                        if(j<r) {
+                            genetics[i][j] = genetics[p][j];
+                        } else {
+                            genetics[i][j] = Math.random()*4-2;
+                        }
+                    }
+                }
+                // 魚の初期化
+                for(var i=0; i<FISH_NUM; i++) {
+                    fish[i].x = 0;         // 中心に絶対配置
+                    fish[i].y = MAP_HEIGHT/2;
+                    fish[i].rotation = 0;
+                    fish[i].rotate(30);
+                }
+                // 点数の初期化
+                for(i=0; i<FISH_NUM; i++) {
+                    result[i] = 0;
+                }
+            }
+        });
+    };
+
+    game.start();
+}
+
+
+</script>
